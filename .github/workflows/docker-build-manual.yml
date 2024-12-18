@@ -9,9 +9,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag condor_usage_metrics:latest
-    - name: push image to osg hub
-      run: |
+      run:  |
+        docker build . --file Dockerfile --tag hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
         docker login hub.opensciencegrid.org -u clundst -p ${{ secrets.OSG_HUB_TOKEN }}
         docker push hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
     
