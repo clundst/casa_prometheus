@@ -1,12 +1,8 @@
 name: Build and Publish image to hub.opensciencegrid.org
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'Dockerfile'
-  
+  workflow_dispatch:    
+ 
 jobs:
   build:
     runs-on: ubuntu-latest
