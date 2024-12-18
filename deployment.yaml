@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: condor-usage-metrics
+  namespace: cmsaf-prod
+spec:
+  selector:
+    app: condor-usage-metrics
+  ports:
+  - protocol: "TCP"
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: condor-usage-metrics-deployment
+  namespace: cmsaf-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: condor-usage-metrics
+  template:
+    metadata:
+      labels:
+        app: condor-usage-metrics
+    spec:
+      containers:
+      - name: condor-usage-metrics-container
+        image: hub.opensciencegrid.org/coffea-casa/condor_usage_metrics
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9090
