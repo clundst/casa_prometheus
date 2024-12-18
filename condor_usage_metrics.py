@@ -96,7 +96,6 @@ if __name__ == '__main__':
         # Update the Prometheus metrics for CPU usage
         DEDICATED_CPUS.set(total_num_cpus_dedicated)
         PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
-        print(scanned_machines)
         # Sleep for 5 seconds before the next cycle
         time.sleep(5)
 
