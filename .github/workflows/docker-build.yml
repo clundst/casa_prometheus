@@ -2,10 +2,11 @@ name: Build and Publish image to hub.opensciencegrid.org
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+  
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,6 +16,6 @@ jobs:
       run: docker build . --file Dockerfile --tag condor_usage_metrics:latest
     - name: push image to osg hub
       run: |
-        docker login -u clundst -p ${{ secrets.OSG_HUB_TOKEN }}
+        docker login hub.opensciencegrid.org -u clundst -p ${{ secrets.OSG_HUB_TOKEN }}
         docker push hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
     
