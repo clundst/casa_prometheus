@@ -20,7 +20,7 @@ def connect_to_negotiator(collector_name):
     """
     # Initialize the collector and get the negotiator advertisement
     collector = htcondor.Collector(collector_name)
-    neg_ad = collector.locate(htcondor.DaemonTypes.Negotiator, "red-condor.unl.edu")
+    neg_ad = collector.locate(htcondor.DaemonTypes.Negotiator, collector_name)
     neg = htcondor.Negotiator(neg_ad)
     return neg
 
