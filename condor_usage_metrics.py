@@ -1,5 +1,6 @@
 import htcondor
 from prometheus_client import start_http_server, Gauge
+from collections import Counter
 import time
 
 # Define Prometheus metrics
@@ -7,6 +8,7 @@ WALLUSAGE = Gauge('total_wall_time_used_by_casa_hours', 'Total wall time used by
 PERUSERUSAGE = Gauge('wall_time_used_by_user_seconds', 'Wall time used per user (in seconds)', ["user"])
 DEDICATED_CPUS = Gauge('number_dedicated_cpus_for_casa', 'Number of dedicated CPUs for CASA')
 PERCENT_CPU_USED = Gauge('current_cpus_being_used_percentage', 'Percentage of dedicated CPUs currently in use')
+ACCOUNTING_GROUP_USAGE = Gauge('slots_used_by_user', 'Slots currently in use by Accounting Group',["AccountingGroup"])
 
 def connect_to_negotiator(collector_name):
     """
@@ -60,6 +62,7 @@ if __name__ == '__main__':
         total_wall_usage = 0
         scanned_machines = []
         total_num_cpus_dedicated = 0
+        Accounting_Groups = []
         in_use = 0
         
         # Connect to the negotiator and fetch metrics
@@ -92,7 +95,10 @@ if __name__ == '__main__':
                 # Count CPUs currently in use by cms-jovyan users
                 if "cms-jovyan" in str(startd.get("RemoteUser")):
                     in_use += 1
-        
+                    Accounting_Groups.append(str(startd.get("AccountingGroup")))
+        Accounting_Groups_Usage = Counter(Accounting_Groups)        
+        for group in Accounting_Groups_Usage:
+            ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
         # Update the Prometheus metrics for CPU usage
         DEDICATED_CPUS.set(total_num_cpus_dedicated)
         PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
