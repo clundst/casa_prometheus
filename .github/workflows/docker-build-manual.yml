@@ -11,6 +11,6 @@ jobs:
     - name: Build the Docker image
       run:  |
         docker build . --file Dockerfile --tag hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
-        docker login hub.opensciencegrid.org -u clundst -p ${{ secrets.OSG_HUB_TOKEN }}
+        docker login hub.opensciencegrid.org -u ${{ secrets.OSG_HUB_ROBOT }} -p ${{ secrets.OSG_HUB_TOKEN }}
         docker push hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
     
