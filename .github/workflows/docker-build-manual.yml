@@ -1,16 +1,68 @@
-name: Build and Publish image to hub.opensciencegrid.org
+name: Docker build
 
 on:
-  workflow_dispatch:    
- 
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+
+env:
+  DOCKER_ORG: coffeateam
+  GITHUB_SHA: ${{ github.sha }}
+  GITHUB_REF: ${{ github.ref }}
+  # Update each time there is added latest python: it will be used for `latest` tag
+  python_latest: "3.12"
+  python_latestv0: "3.10"
+  # For coffea 2024.x.x we have conda release, github CI bot will detect new version and open PR with changes
+  release: "2025.1.0"
+  # For coffea 0.7.23 we dont have conda release, please update it manually
+  releasev0: "0.7.24"
+
 jobs:
+
   build:
+    strategy:
+      fail-fast: false
+    name: build-and-push-latest
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run:  |
-        docker build . --file Dockerfile --tag hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
-        docker login hub.opensciencegrid.org -u ${{ secrets.OSG_HUB_ROBOT }} -p ${{ secrets.OSG_HUB_TOKEN }}
-        docker push hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
-    
+
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-docker-action@v4
+      with:
+        daemon-config: |
+          {
+            "debug": true,
+            "features": {
+              "containerd-snapshotter": true
+            }
+          }
+
+    - name: Login to Harbor Hub
+      if: success() && github.event_name != 'pull_request'
+      uses: docker/login-action@v2
+      with:
+        registry: hub.opensciencegrid.org
+        username: ${{ secrets.OSG_HUB_ROBOT }}
+        password: ${{ secrets.OSG_HUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        platforms: linux/amd64,linux/arm64
+        push: ${{  github.event_name == 'push' }}
+        tags: hub.opensciencegrid.org/coffea-casa/condor_usage_metrics:latest
+        context: .
+        file: Dockerfile
+
