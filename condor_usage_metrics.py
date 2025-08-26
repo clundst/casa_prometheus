@@ -6,6 +6,7 @@ import time
 # Define Prometheus metrics
 WALLUSAGE = Gauge('total_wall_time_used_by_casa_hours', 'Total wall time used by CASA (in hours)')
 PERUSERUSAGE = Gauge('wall_time_used_by_user_seconds', 'Wall time used per user (in seconds)', ["user"])
+TOTAL_CPUS = Gauge('number_of_total_cpus_in_cluster', 'Number of CPUs in Cluster')
 DEDICATED_CPUS = Gauge('number_dedicated_cpus_for_casa', 'Number of dedicated CPUs for CASA')
 PERCENT_CPU_USED = Gauge('current_cpus_being_used_percentage', 'Percentage of dedicated CPUs currently in use')
 ACCOUNTING_GROUP_USAGE = Gauge('slots_used_by_user', 'Slots currently in use by Accounting Group',["AccountingGroup"])
@@ -81,6 +82,7 @@ if __name__ == '__main__':
     while True:
         total_wall_usage = 0
         scanned_machines = []
+        total_num_cpus_cluster = 0
         total_num_cpus_dedicated = 0
         Accounting_Groups = []
         in_use = 0
@@ -103,12 +105,13 @@ if __name__ == '__main__':
         # Fetch startd data and calculate CPU usage
         startds = get_startd("red-condor.unl.edu")
         for startd in startds:
-            if "cms-jovyan" in str(startd.get("Start")):
-                cpus = int(startd.get("DetectedCpus"))
-                machine_name = str(startd.get("Machine"))
-                # Track CPUs dedicated to CASA
-                if machine_name not in scanned_machines:
-                    scanned_machines.append(machine_name)
+            cpus = int(startd.get("DetectedCpus"))
+            machine_name = str(startd.get("Machine"))
+
+            if machine_name not in scanned_machines:
+                scanned_machines.append(machine_name)
+                total_num_cpus_cluster += cpus
+                if "cms-jovyan" in str(startd.get("Start")):
                     total_num_cpus_dedicated += cpus
                 
                 # Count CPUs currently in use by cms-jovyan users
@@ -120,6 +123,7 @@ if __name__ == '__main__':
             ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
         # Update the Prometheus metrics for CPU usage
         DEDICATED_CPUS.set(total_num_cpus_dedicated)
+        TOTAL_CPUS.set(total_num_cpus_cluster)    
         PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
         # Sleep for 5 seconds before the next cycle
         slot_usage = get_occupancy('red-condor.unl.edu')
