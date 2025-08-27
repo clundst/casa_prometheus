@@ -67,10 +67,14 @@ def get_occupancy(collector_name):
     """
     collector = htcondor.Collector(collector_name)
     RemoteOwners_list = []
-    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING'])
+    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus'])
     for slot in slotState[:]:
         if (slot['State'] == "Claimed"):
-            RemoteOwners_list.append(str(slot['RemoteOwner']))
+            if "cms-jovyan" in slot['RemoteOwner']:
+                RemoteOwners_list.append(str(slot['RemoteOwner']))
+            else:
+                for _ in range(int(slot['TotalCpus'])):
+                    RemoteOwners_list.append(str(slot['RemoteOwner']))
     return(Counter(RemoteOwners_list))
 
 
@@ -125,11 +129,11 @@ if __name__ == '__main__':
         DEDICATED_CPUS.set(total_num_cpus_dedicated)
         TOTAL_CPUS.set(total_num_cpus_cluster)    
         PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
-        # Sleep for 5 seconds before the next cycle
         slot_usage = get_occupancy('red-condor.unl.edu')
             
         for key, value in slot_usage.items():
             OCCUPANCY.labels(owner=key).set(value)
 
+        # Sleep for 5 seconds before the next cycle
         time.sleep(5)
 
