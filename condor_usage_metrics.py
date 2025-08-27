@@ -11,6 +11,7 @@ DEDICATED_CPUS = Gauge('number_dedicated_cpus_for_casa', 'Number of dedicated CP
 PERCENT_CPU_USED = Gauge('current_cpus_being_used_percentage', 'Percentage of dedicated CPUs currently in use')
 ACCOUNTING_GROUP_USAGE = Gauge('slots_used_by_user', 'Slots currently in use by Accounting Group',["AccountingGroup"])
 OCCUPANCY = Gauge('RemoteOwners', 'A gauge for who is using the cluster',['owner'])
+NODE_CPU_EFF = Gauge('CPU_Eff','A gague for cpu utilization efficiency')
 
 def connect_to_negotiator(collector_name):
     """
@@ -67,7 +68,7 @@ def get_occupancy(collector_name):
     """
     collector = htcondor.Collector(collector_name)
     RemoteOwners_list = []
-    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus'])
+    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
     for slot in slotState[:]:
         if (slot['State'] == "Claimed"):
             if "cms-jovyan" in slot['RemoteOwner']:
@@ -76,6 +77,26 @@ def get_occupancy(collector_name):
                 for _ in range(int(slot['TotalCpus'])):
                     RemoteOwners_list.append(str(slot['RemoteOwner']))
     return(Counter(RemoteOwners_list))
+
+def get_cluster_cpu_eff(collector_name):
+    """
+    Calculates the cluster CPU efficency
+    Returns:
+    fraction of load versus N CPU
+    """
+    cluster_eff =  0.0
+    total_num_cpu = 0
+    node_eff = 0.0
+    collector = htcondor.Collector(collector_name)
+    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
+
+    for slot in slotState[:]:
+        if (slot['State'] == 'Claimed'):
+            node_eff += slot['LoadAvg']
+            total_num_cpu += slot['TotalCpus']
+    cluster_eff = node_eff / total_num_cpu
+
+    return(cluster_eff)
 
 
 if __name__ == '__main__':
@@ -130,7 +151,7 @@ if __name__ == '__main__':
         TOTAL_CPUS.set(total_num_cpus_cluster)    
         PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
         slot_usage = get_occupancy('red-condor.unl.edu')
-            
+        NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))            
         for key, value in slot_usage.items():
             OCCUPANCY.labels(owner=key).set(value)
 
