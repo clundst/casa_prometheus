@@ -12,7 +12,7 @@ PERCENT_CPU_USED = Gauge('current_cpus_being_used_percentage', 'Percentage of de
 ACCOUNTING_GROUP_USAGE = Gauge('slots_used_by_user', 'Slots currently in use by Accounting Group',["AccountingGroup"])
 OCCUPANCY = Gauge('RemoteOwners', 'A gauge for who is using the cluster',['owner'])
 NODE_CPU_EFF = Gauge('CPU_Eff','A gague for cpu utilization efficiency')
-
+NODE_CPU_EFF_BY_CORE_COUNT = Gauge('NODE_EFF','A gauge for cpu efficiency by core count',['numcpus'])
 def connect_to_negotiator(collector_name):
     """
     Connects to the HTCondor negotiator and returns the negotiator object.
@@ -98,6 +98,22 @@ def get_cluster_cpu_eff(collector_name):
 
     return(cluster_eff)
 
+def get_node_cpu_eff(collector_name):
+    """
+    Calculates cpu eff and sorts by CPU count of node
+    Returns:
+    nothing, sets NODE_CPU_EFF_BY_CORE_COUNT metric
+    """
+
+    total_num_cpu = 0
+    node_eff = 0.0
+    collector = htcondor.Collector(collector_name)
+    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
+
+    for slot in slotState[:]:
+        if (slot['State'] == 'Claimed' and 'cms-jovyan' not in slot['RemoteOwner']):
+            node_eff = slot['LoadAvg'] / slot['TotalCpus']    
+            NODE_CPU_EFF_BY_CORE_COUNT.labels(numcpus=slot['TotalCpus']).set(node_eff)
 
 if __name__ == '__main__':
     # Start the Prometheus HTTP server on port 9090
@@ -154,7 +170,7 @@ if __name__ == '__main__':
         NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))            
         for key, value in slot_usage.items():
             OCCUPANCY.labels(owner=key).set(value)
-
+        get_node_cpu_eff('red-condor.unl.edu')
         # Sleep for 5 seconds before the next cycle
         time.sleep(5)
 
