@@ -91,7 +91,7 @@ def get_cluster_cpu_eff(collector_name):
     slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
 
     for slot in slotState[:]:
-        if (slot['State'] == 'Claimed'):
+        if (slot['State'] == 'Claimed' and 'cms-jovyan' not in slot['RemoteOwner']):
             node_eff += slot['LoadAvg']
             total_num_cpu += slot['TotalCpus']
     cluster_eff = node_eff / total_num_cpu
