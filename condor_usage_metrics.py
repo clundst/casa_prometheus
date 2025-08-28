@@ -1,6 +1,6 @@
 import htcondor
 from prometheus_client import start_http_server, Gauge
-from collections import Counter
+from collections import Counter, defaultdict
 import time
 
 # Define Prometheus metrics
@@ -104,7 +104,7 @@ def get_node_cpu_eff(collector_name):
     Returns:
     nothing, sets NODE_CPU_EFF_BY_CORE_COUNT metric
     """
-
+    node_entry = defaultdict(list)
     total_num_cpu = 0
     node_eff = 0.0
     collector = htcondor.Collector(collector_name)
@@ -112,8 +112,11 @@ def get_node_cpu_eff(collector_name):
 
     for slot in slotState[:]:
         if (slot['State'] == 'Claimed' and 'cms-jovyan' not in slot['RemoteOwner']):
-            node_eff = slot['LoadAvg'] / slot['TotalCpus']    
-            NODE_CPU_EFF_BY_CORE_COUNT.labels(numcpus=slot['TotalCpus']).set(node_eff)
+            node_eff = slot['LoadAvg'] / slot['TotalCpus']
+            node_entry[str(slot['TotalCpus'])].append(node_eff)
+    averages = {name: sum(pcts) / len(pcts) for name, pcts in node_entry.items()}
+    for node in averages:
+        NODE_CPU_EFF_BY_CORE_COUNT.labels(numcpus=node).set(averages[node])
 
 if __name__ == '__main__':
     # Start the Prometheus HTTP server on port 9090
