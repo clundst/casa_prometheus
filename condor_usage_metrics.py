@@ -65,13 +65,13 @@ def get_metrics_full(negotiator):
            PERUSERUSAGE.labels(user=user_name).set(priority.get("WeightedAccumulatedUsage"))
 
    # Convert total wall usage from seconds to hours
-   total_wall_usage_hours = total_wall_usage / 3600
-   WALLUSAGE.set(total_wall_usage_hours)
-   # Fetch startd data and calculate CPU usage
-   startds = get_startd(negotiator)
-   for startd in startds:
-       cpus = int(startd.get("DetectedCpus"))
-       machine_name = str(startd.get("Machine"))
+    total_wall_usage_hours = total_wall_usage / 3600
+    WALLUSAGE.set(total_wall_usage_hours)
+    # Fetch startd data and calculate CPU usage
+    startds = get_startd(negotiator)
+    for startd in startds:
+        cpus = int(startd.get("DetectedCpus"))
+        machine_name = str(startd.get("Machine"))
         if machine_name not in scanned_machines:
            scanned_machines.append(machine_name)
            total_num_cpus_cluster += cpus
@@ -81,17 +81,17 @@ def get_metrics_full(negotiator):
            if "cms-jovyan" in str(startd.get("RemoteUser")):
                in_use += 1
                Accounting_Groups.append(str(startd.get("AccountingGroup")))
-   Accounting_Groups_Usage = Counter(Accounting_Groups)
-   for group in Accounting_Groups_Usage:
-       ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
+    Accounting_Groups_Usage = Counter(Accounting_Groups)
+    for group in Accounting_Groups_Usage:
+           ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
    # Update the Prometheus metrics for CPU usage
-   DEDICATED_CPUS.set(total_num_cpus_dedicated)
-   TOTAL_CPUS.set(total_num_cpus_cluster)
-   PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
-   slot_usage = get_occupancy('red-condor.unl.edu')
-   NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))
-   for key, value in slot_usage.items():
-       OCCUPANCY.labels(owner=key).set(value)
+    DEDICATED_CPUS.set(total_num_cpus_dedicated)
+    TOTAL_CPUS.set(total_num_cpus_cluster)
+    PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
+    slot_usage = get_occupancy('red-condor.unl.edu')
+    NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))
+    for key, value in slot_usage.items():
+           OCCUPANCY.labels(owner=key).set(value)
 
 
 def get_startd(collector_name):
