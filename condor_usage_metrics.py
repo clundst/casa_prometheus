@@ -13,6 +13,7 @@ ACCOUNTING_GROUP_USAGE = Gauge('slots_used_by_user', 'Slots currently in use by 
 OCCUPANCY = Gauge('RemoteOwners', 'A gauge for who is using the cluster',['owner'])
 NODE_CPU_EFF = Gauge('CPU_Eff','A gague for cpu utilization efficiency')
 NODE_CPU_EFF_BY_CORE_COUNT = Gauge('NODE_EFF','A gauge for cpu efficiency by core count',['numcpus'])
+NODE_CPU_EFF_BY_NODE = Gauge('NODE_EFF_PER_NODE','A gauge for cpu efficiency for each node',['nodename'])
 def connect_to_negotiator(collector_name):
     """
     Connects to the HTCondor negotiator and returns the negotiator object.
@@ -107,6 +108,8 @@ def get_node_cpu_eff(collector_name):
     node_entry = defaultdict(list)
     total_num_cpu = 0
     node_eff = 0.0
+    scanned_machines=[]
+
     collector = htcondor.Collector(collector_name)
     slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
 
@@ -114,6 +117,10 @@ def get_node_cpu_eff(collector_name):
         if (slot['State'] == 'Claimed' and 'cms-jovyan' not in slot['RemoteOwner']):
             node_eff = slot['LoadAvg'] / slot['TotalCpus']
             node_entry[str(slot['TotalCpus'])].append(node_eff)
+            if slot['Name']  not in scanned_machines:
+                scanned_machines.append(slot['Name'])
+                NODE_CPU_EFF_BY_NODE.labels(nodename=slot['Name']).set(float(node_eff))
+
     averages = {name: sum(pcts) / len(pcts) for name, pcts in node_entry.items()}
     for node in averages:
         NODE_CPU_EFF_BY_CORE_COUNT.labels(numcpus=node).set(averages[node])
