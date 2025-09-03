@@ -182,5 +182,5 @@ if __name__ == '__main__':
             OCCUPANCY.labels(owner=key).set(value)
         get_node_cpu_eff('red-condor.unl.edu')
         # Sleep for 5 seconds before the next cycle
-        time.sleep(5)
+        time.sleep(30)
 
