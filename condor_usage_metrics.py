@@ -42,6 +42,57 @@ def get_metrics(negotiator):
     """
     priorities = negotiator.getPriorities(True)
     return priorities
+def get_metrics_full(negotiator):
+    """
+    Fetch and fill metrics
+    Returns:
+    none
+    """
+    total_wall_usage = 0
+    scanned_machines = []
+    total_num_cpus_cluster = 0
+    total_num_cpus_dedicated = 0
+    Accounting_Groups = []
+    in_use = 0
+        # Connect to the negotiator and fetch metrics
+    neg = connect_to_negotiator(negotiator)
+    priorities = get_metrics(neg)
+    # Update user-specific wall time usage
+    for priority in priorities:
+       user_name = priority.get("Name")
+       if "jupyter" in user_name or "cms-jovyan@unl.edu" in user_name:
+           total_wall_usage += priority.get("WeightedAccumulatedUsage")
+           PERUSERUSAGE.labels(user=user_name).set(priority.get("WeightedAccumulatedUsage"))
+
+   # Convert total wall usage from seconds to hours
+   total_wall_usage_hours = total_wall_usage / 3600
+   WALLUSAGE.set(total_wall_usage_hours)
+   # Fetch startd data and calculate CPU usage
+   startds = get_startd(negotiator)
+   for startd in startds:
+       cpus = int(startd.get("DetectedCpus"))
+       machine_name = str(startd.get("Machine"))
+        if machine_name not in scanned_machines:
+           scanned_machines.append(machine_name)
+           total_num_cpus_cluster += cpus
+           if "cms-jovyan" in str(startd.get("Start")):
+               total_num_cpus_dedicated += cpus
+            # Count CPUs currently in use by cms-jovyan users
+           if "cms-jovyan" in str(startd.get("RemoteUser")):
+               in_use += 1
+               Accounting_Groups.append(str(startd.get("AccountingGroup")))
+   Accounting_Groups_Usage = Counter(Accounting_Groups)
+   for group in Accounting_Groups_Usage:
+       ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
+   # Update the Prometheus metrics for CPU usage
+   DEDICATED_CPUS.set(total_num_cpus_dedicated)
+   TOTAL_CPUS.set(total_num_cpus_cluster)
+   PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
+   slot_usage = get_occupancy('red-condor.unl.edu')
+   NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))
+   for key, value in slot_usage.items():
+       OCCUPANCY.labels(owner=key).set(value)
+
 
 def get_startd(collector_name):
     """
@@ -111,7 +162,7 @@ def get_node_cpu_eff(collector_name):
     scanned_machines=[]
 
     collector = htcondor.Collector(collector_name)
-    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg'])
+    slotState = collector.query(htcondor.AdTypes.Startd,"true",['Name','JobId','State','RemoteOwner','COLLECTOR_HOST_STRING','TotalCpus','LoadAvg','Machine'])
 
     for slot in slotState[:]:
         if (slot['State'] == 'Claimed' and 'cms-jovyan' not in slot['RemoteOwner']):
@@ -119,7 +170,7 @@ def get_node_cpu_eff(collector_name):
             node_entry[str(slot['TotalCpus'])].append(node_eff)
             if slot['Name']  not in scanned_machines:
                 scanned_machines.append(slot['Name'])
-                NODE_CPU_EFF_BY_NODE.labels(nodename=slot['Name']).set(float(node_eff))
+                NODE_CPU_EFF_BY_NODE.labels(nodename=slot['Machine']).set(float(node_eff))
 
     averages = {name: sum(pcts) / len(pcts) for name, pcts in node_entry.items()}
     for node in averages:
@@ -131,51 +182,7 @@ if __name__ == '__main__':
     
     # Main loop for gathering and updating metrics
     while True:
-        total_wall_usage = 0
-        scanned_machines = []
-        total_num_cpus_cluster = 0
-        total_num_cpus_dedicated = 0
-        Accounting_Groups = []
-        in_use = 0
-        
-        # Connect to the negotiator and fetch metrics
-        neg = connect_to_negotiator("red-condor.unl.edu")
-        priorities = get_metrics(neg)
-        
-        # Update user-specific wall time usage
-        for priority in priorities:
-            user_name = priority.get("Name")
-            if "jupyter" in user_name or "cms-jovyan@unl.edu" in user_name:
-                total_wall_usage += priority.get("WeightedAccumulatedUsage")
-                PERUSERUSAGE.labels(user=user_name).set(priority.get("WeightedAccumulatedUsage"))
-        
-        # Convert total wall usage from seconds to hours
-        total_wall_usage_hours = total_wall_usage / 3600
-        WALLUSAGE.set(total_wall_usage_hours)
-
-        # Fetch startd data and calculate CPU usage
-        startds = get_startd("red-condor.unl.edu")
-        for startd in startds:
-            cpus = int(startd.get("DetectedCpus"))
-            machine_name = str(startd.get("Machine"))
-
-            if machine_name not in scanned_machines:
-                scanned_machines.append(machine_name)
-                total_num_cpus_cluster += cpus
-                if "cms-jovyan" in str(startd.get("Start")):
-                    total_num_cpus_dedicated += cpus
-                
-                # Count CPUs currently in use by cms-jovyan users
-                if "cms-jovyan" in str(startd.get("RemoteUser")):
-                    in_use += 1
-                    Accounting_Groups.append(str(startd.get("AccountingGroup")))
-        Accounting_Groups_Usage = Counter(Accounting_Groups)
-        for group in Accounting_Groups_Usage:
-            ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
-        # Update the Prometheus metrics for CPU usage
-        DEDICATED_CPUS.set(total_num_cpus_dedicated)
-        TOTAL_CPUS.set(total_num_cpus_cluster)    
-        PERCENT_CPU_USED.set(float(in_use) / float(total_num_cpus_dedicated) if total_num_cpus_dedicated > 0 else 0)
+        get_metrics_full('red-condor.unl.edu')
         slot_usage = get_occupancy('red-condor.unl.edu')
         NODE_CPU_EFF.set(get_cluster_cpu_eff('red-condor.unl.edu'))            
         for key, value in slot_usage.items():
