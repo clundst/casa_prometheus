@@ -75,8 +75,8 @@ def get_metrics_full(negotiator):
         if machine_name not in scanned_machines:
            scanned_machines.append(machine_name)
            total_num_cpus_cluster += cpus
-        if "cms-jovyan" in str(startd.get("Start")):
-            total_num_cpus_dedicated += cpus
+           if "cms-jovyan" in str(startd.get("Start")):
+                total_num_cpus_dedicated += cpus
         # Count CPUs currently in use by cms-jovyan users
         if "cms-jovyan" in str(startd.get("RemoteUser")):
             in_use += 1
