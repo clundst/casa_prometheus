@@ -75,12 +75,12 @@ def get_metrics_full(negotiator):
         if machine_name not in scanned_machines:
            scanned_machines.append(machine_name)
            total_num_cpus_cluster += cpus
-           if "cms-jovyan" in str(startd.get("Start")):
-               total_num_cpus_dedicated += cpus
-            # Count CPUs currently in use by cms-jovyan users
-           if "cms-jovyan" in str(startd.get("RemoteUser")):
-               in_use += 1
-               Accounting_Groups.append(str(startd.get("AccountingGroup")))
+        if "cms-jovyan" in str(startd.get("Start")):
+            total_num_cpus_dedicated += cpus
+        # Count CPUs currently in use by cms-jovyan users
+        if "cms-jovyan" in str(startd.get("RemoteUser")):
+            in_use += 1
+            Accounting_Groups.append(str(startd.get("AccountingGroup")))
     Accounting_Groups_Usage = Counter(Accounting_Groups)
     for group in Accounting_Groups_Usage:
            ACCOUNTING_GROUP_USAGE.labels(AccountingGroup=group).set(Accounting_Groups_Usage[group])
@@ -189,5 +189,5 @@ if __name__ == '__main__':
             OCCUPANCY.labels(owner=key).set(value)
         get_node_cpu_eff('red-condor.unl.edu')
         # Sleep for 5 seconds before the next cycle
-        time.sleep(30)
+        time.sleep(5)
 
